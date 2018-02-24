@@ -4,6 +4,7 @@ module.exports = (function() {
    * @param {*} json
    */
   function parseJson(json) {
+    if (!json || json === '' || json === null) return null;
     try {
       return json instanceof Object ? json : eval('(' + json + ')');
     } catch (e) {
@@ -70,7 +71,7 @@ module.exports = (function() {
    * @param {Boolean} merge 是否合并现有的
    */
   function defineDataPro(vm, prototype, protoval, merge) {
-    let value = vm.$verify.protoQueue[prototype];
+    let value = vm.$verify.$protoQueue[prototype];
     if (value && merge) {
       if (Array.isArray(value)) {
         value.push(protoval);
@@ -80,28 +81,29 @@ module.exports = (function() {
     } else {
       value = protoval;
     }
-    vm.$verify.protoQueue[prototype] = value;
+    vm.$verify.$protoQueue[prototype] = value;
   }
 
   /**
    * 处理自定义错误(remind/verified > el )
    * @param {Vue} vm
    * @param {Element} el 校验节点
-   * @param {String} field 校验字段
    * @param {Object} attr 自定义属性
    */
-  function defineErrors(vm, el, field, attr) {
-    attr = attr || parseJson(el.getAttribute('data-verify'));
+  function defineErrors(vm, el, attr) {
+    attr = attr || parseJson(el.dataset.verify);
     let errors = attr ? attr.error : null;
     if (!errors) {
-      errors = el.getAttribute('data-verify_errors');
+      errors = el.dataset.verify_errors;
       if (!errors || errors === '') return;
       errors = parseJson(errors);
     }
     defineDataPro(
       vm,
       'errors',
-      { [field]: errors && Array.isArray(errors) ? errors : [] },
+      {
+        [el.dataset.verify_field]: errors && Array.isArray(errors) ? errors : []
+      },
       true
     );
   }
@@ -115,39 +117,40 @@ module.exports = (function() {
    */
   function defineAttr(vm, el, binding, callback) {
     let verifyAttr = is('Object', binding.value) ?
-      binding.value :
-      parseJson(el.getAttribute('data-verify')) || {};
+        binding.value :
+        parseJson(el.dataset.verify) || {}, //兼容指令字面量
+      verifyField = el.dataset.verify_field || '';
     if (!verifyAttr.hasOwnProperty('blur')) {
       verifyAttr.blur = true;
     }
     if (verifyAttr.replace) {
       for (let attr in verifyAttr.replace) {
-        binding.field = binding.field.replace(
+        verifyField = verifyField.replace(
           new RegExp(attr, 'gm'),
           verifyAttr.replace[attr]
         );
       }
+      el.dataset.verify_field = verifyField;
     }
-    defineErrors(vm, el, binding.field, verifyAttr);
+    defineErrors(vm, el, verifyAttr);
     if (binding.name === 'remind') {
       //有定义 v-remind，缓存定义 v-remind 的字段，错误提示使用 remind 提示代替默认提示
-      defineDataPro(vm, 'remind', { [binding.field]: el }, true);
+      defineDataPro(vm, 'remind', { [verifyField]: el }, true);
     } else if (binding.name === 'verify') {
       //定义了 v-verify 的字段，提取自定义属性中的 blur 字段，用于失去焦点校验
       defineDataPro(
         vm,
         'blur',
         {
-          [binding.field]:
-            verifyAttr.blur === true || verifyAttr.blur === 'true'
+          [verifyField]: verifyAttr.blur === true || verifyAttr.blur === 'true'
         },
         true
       );
     }
     //存储原始节点
-    defineDataPro(vm, 'original', { [binding.field]: el }, true);
+    defineDataPro(vm, 'original', { [verifyField]: el }, true);
 
-    callback && callback(binding.field);
+    callback && callback(verifyField);
   }
 
   /**
@@ -175,15 +178,7 @@ module.exports = (function() {
    * @param {String} field
    */
   function getVerifyEl(vm, field) {
-    let _original = vm.$verify.protoQueue.original || {},
-      _el;
-    for (let key in _original) {
-      if (key === field) {
-        _el = _original[key];
-        break;
-      }
-    }
-    return _el;
+    return (vm.$verify.$protoQueue.original || {})[field];
   }
 
   /**
@@ -213,7 +208,7 @@ module.exports = (function() {
    * @param {String} field 校验节点
    */
   function getExpression(vm, field) {
-    let _verifyQueue = vm.$verify.verifyQueue,
+    let _verifyQueue = vm.$verify.$verifyQueue,
       _expression,
       _break;
     for (let key in _verifyQueue) {
@@ -241,17 +236,18 @@ module.exports = (function() {
   function replaceError(vm, field, rule, index) {
     if (rule) {
       let errors =
-        (vm.$verify.protoQueue.errors ?
-          vm.$verify.protoQueue.errors[field] :
+        (vm.$verify.$protoQueue.errors ?
+          vm.$verify.$protoQueue.errors[field] :
           []) || [];
       if (Array.isArray(rule)) {
-        rule = rule.map((re, i) => {
+        return rule.map((re, i) => {
           re.message = errors[i || 0] || re.message;
           return re;
         });
-      } else {
-        rule.message = errors[index || 0] || rule.message;
       }
+      let _rule = Object.assign({}, rule);
+      _rule.message = errors[index || 0] || rule.message;
+      return _rule;
     }
     return rule;
   }
@@ -280,9 +276,9 @@ module.exports = (function() {
    * @param {String} field model字段
    */
   function ignore(vm, field) {
-    let original = (vm.$verify.protoQueue.original || {})[field];
+    let original = (vm.$verify.$protoQueue.original || {})[field];
     if (original && original.hasAttribute('data-verify')) {
-      let verifyAttr = parseJson(original.getAttribute('data-verify'));
+      let verifyAttr = parseJson(original.dataset.verify);
       if (
         verifyAttr &&
         (verifyAttr.ignore === true || verifyAttr.ignore === 'true')
@@ -306,8 +302,8 @@ module.exports = (function() {
         fieldOption(options).msgbox !== false &&
         options.msgbox !== false &&
         !(
-          vm.$verify.protoQueue.remind &&
-          vm.$verify.protoQueue.remind.hasOwnProperty(field)
+          vm.$verify.$protoQueue.remind &&
+          vm.$verify.$protoQueue.remind.hasOwnProperty(field)
         )
     );
   }
@@ -319,10 +315,29 @@ module.exports = (function() {
    */
   function isSupportBlur(vm, field) {
     return (
-      vm.$verify.protoQueue.blur &&
-      vm.$verify.protoQueue.blur[field] === true &&
+      vm.$verify.$protoQueue.blur &&
+      vm.$verify.$protoQueue.blur[field] === true &&
       !ignore(vm, field)
     );
+  }
+
+  /**
+   * 提取真实 field 字段
+   * @param {Object} vnodeData vnode.data
+   */
+  function getVerifyField(vnodeData) {
+    let field;
+    if (vnodeData.model) {
+      field = vnodeData.model.expression;
+    } else {
+      helper.forEach(vnodeData.directives, item => {
+        if (item.name === 'model') {
+          field = item.expression;
+          return false;
+        }
+      });
+    }
+    return field;
   }
 
   return {
@@ -338,6 +353,7 @@ module.exports = (function() {
     isMsgBox: isMsgBox, //是否需要MsgBox提示
     ignore: ignore, //是否包含有忽略标识
     isSupportBlur: isSupportBlur, //是否支持 blur 校验
+    getVerifyField: getVerifyField, //提取 field 字段
     is: is, //数据类型判断
     parseJson: parseJson, //解析JSON
     forEach: forEach //自定义循环函数，支持 return false

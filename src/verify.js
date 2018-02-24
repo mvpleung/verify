@@ -3,20 +3,20 @@
  * @Author: focus 
  * @Date: 2017-04-14
  * @Last Modified by: liangzc
- * @Last Modified time: 2018-02-23 11:26:58
+ * @Last Modified time: 2018-02-23 17:33:21
  */
 let _ = require('lodash/object'),
   domTools = require('./domTools'),
   helper = require('./helper'),
   { rules, idCard } = require('./defaultRules'),
   Vue,
-  _options,
-  _msgInstance;
+  $options,
+  $msgInstance;
 
 let Verify = function(VueComponent) {
   this.vm = VueComponent;
-  this.verifyQueue = {}; //验证队列
-  this.protoQueue = {};
+  this.$verifyQueue = {}; //验证队列
+  this.$protoQueue = {};
   Vue.util.defineReactive(this, '$errors', {});
 };
 
@@ -24,7 +24,7 @@ let validate = function(field, rule, validOnly) {
   let vm = this; //Vue组件对象
   let value = _.get(vm, field);
   if (!vm.$verify.$errorArray) vm.$verify.$errorArray = [];
-  if (!_options.multiple && vm.$verify.$errorArray.length > 0) return false; //单次校验，替代批量校验
+  if (!$options.multiple && vm.$verify.$errorArray.length > 0) return false; //单次校验，替代批量校验
 
   //如果为验证规则为数组则进行遍历
   if (Array.isArray(rule)) {
@@ -124,25 +124,25 @@ let validate = function(field, rule, validOnly) {
   let $error = _.get(vm.$verify.$errors, field);
   //验证未通过
   if (!valid) {
-    if (_options.allCheck === true && _options.scrollToEl === true) {
+    if ($options.allCheck === true && $options.scrollToEl === true) {
       //默认滚动到校验的节点，仅限于全部校验时
       helper.scrollToVerifyEl(
         vm,
         field,
-        helper.fieldOption(_options).offsetTop || 0
+        helper.fieldOption($options).offsetTop || 0
       );
     }
     //处理 placeholder 占位符，比如 '{0}不能为空'
     rule.message = rule.message ?
       rule.message.replace(new RegExp('\\{0\\}', 'g'), rule.placeholder || '') :
       rule.message;
-    if (helper.isMsgBox(vm, _options, field, validOnly)) {
-      if (_msgInstance && _msgInstance.close) {
-        _msgInstance.close();
+    if (helper.isMsgBox(vm, $options, field, validOnly)) {
+      if ($msgInstance && $msgInstance.close) {
+        $msgInstance.close();
       }
-      _msgInstance = _options.msgbox(rule.message);
+      $msgInstance = $options.msgbox(rule.message);
     }
-    if (!_options.force) {
+    if (!$options.force) {
       $error.push(rule.message);
     }
     vm.$verify.$errorArray.push(rule.message);
@@ -153,9 +153,9 @@ let validate = function(field, rule, validOnly) {
 let init = function() {
   this.$options.verify = this.$options.verify || {};
   this.$verify = new Verify(this); //添加vm实例验证属性
-  this.$verify.idCard = idCard; //对外暴露身份证校验对象
-  this.$verify.rules = rules;
-  _options.force = false; //重置配置项
+  this.$verify.$idCard = idCard; //对外暴露身份证校验对象
+  this.$verify.$rules = rules;
+  $options.force = false; //重置配置项
   this.$nextTick(() => {
     Object.assign(this.$options.verify, rules, this.$options.verify);
   });
@@ -176,46 +176,42 @@ let Directive = function(Vue, options) {
   Vue.directive('verify', {
     bind: function(el, binding, vnode, oldVnode) {
       let vm = vnode.context; //当前组件实例
+
       let bindingExpress = helper.is('Object', binding.value) ?
         binding.value.rule :
         binding.expression;
+
       let expression = bindingExpress.replace(new RegExp('\'', 'gm'), ''); //处理字符串形式的校验规则，比如 "'required|email'"
       if (expression === null || expression === '' || expression.length === 0)
         return;
+
       //提取 field
-      if (vnode.data.model) {
-        binding.field = vnode.data.model.expression;
-      } else {
-        helper.forEach(vnode.data.directives, item => {
-          if (item.name === 'model') {
-            binding.field = item.expression;
-            return false;
-          }
-        });
-      }
+      el.dataset.verify_field = helper.getVerifyField(vnode.data);
 
-      //自定义属性，参考 plugins/verify-plugin/index.js
-      helper.defineAttr(vm, el, binding);
-
-      //兼容封装组件
-      el = domTools.findDom(el, ['input', 'select', 'textarea']); //获取真实Element，处理封装控件
+      //自定义属性，参考 ./index.js
+      helper.defineAttr(vm, el, binding, field => {
+        //兼容封装组件
+        el = domTools.findDom(el, ['input', 'select', 'textarea']); //获取真实Element，处理封装控件
+        el.dataset.verify_field = field;
+      });
 
       //得到焦点 移除错误
-      el.addEventListener('focus', function() {
-        _.set(vm.$verify.$errors, binding.field, []);
+      el.addEventListener('focus', e => {
+        _.set(vm.$verify.$errors, e.target.dataset.verify_field, []);
       });
 
       //失去焦点 进行验证
       if (options && options.blur) {
-        el.addEventListener('blur', function() {
-          if (helper.isSupportBlur(vm, binding.field)) {
-            _options.force = false;
-            _options.allCheck = false; //取消全部校验标识
+        el.addEventListener('blur', e => {
+          const verifyField = e.target.dataset.verify_field;
+          if (helper.isSupportBlur(vm, verifyField)) {
+            $options.force = false;
+            $options.allCheck = false; //取消全部校验标识
             vm.$verify.$errorArray = [];
             validate.call(
               vm,
-              binding.field,
-              helper.convertCustomError(vm, binding.field, expression) ||
+              verifyField,
+              helper.convertCustomError(vm, verifyField, expression) ||
                 expression
             );
           }
@@ -233,12 +229,12 @@ let Directive = function(Vue, options) {
       } else {
         group = '';
       }
-      if (!vm.$verify.verifyQueue[group]) {
-        vm.$verify.verifyQueue[group] = [];
+      if (!vm.$verify.$verifyQueue[group]) {
+        vm.$verify.$verifyQueue[group] = [];
       }
-      vm.$verify.verifyQueue[group].push({
+      vm.$verify.$verifyQueue[group].push({
         el: el,
-        field: binding.field,
+        field: el.dataset.verify_field,
         expression: expression
       });
 
@@ -263,12 +259,12 @@ let Directive = function(Vue, options) {
         helper.isVerifyConfig(bindingExpress) && helper.isVerifyConfig(key);
       Vue.util.defineReactive(
         tempErrors,
-        isVerConfig ? key : binding.field,
+        isVerConfig ? key : el.dataset.verify_field,
         []
       );
 
       //错误默认值为空
-      _.set(vm.$verify.$errors, binding.field, []);
+      _.set(vm.$verify.$errors, el.dataset.verify_field, []);
       vm.$verify.$errorArray = [];
 
       //监听错误 移除对应的Class
@@ -291,36 +287,19 @@ let Directive = function(Vue, options) {
   Vue.directive('remind', {
     bind: function(el, binding, vnode, oldVnode) {
       //缓存使用 remind 提示的字段，遇到此字段时 remind 提示优先
-      binding.field = (helper.is('Object', binding.value) ?
+      el.dataset.verify_field = (helper.is('Object', binding.value) ?
         binding.value.field :
         binding.expression
       ).replace(new RegExp('\'', 'gm'), '');
       helper.defineAttr(vnode.context, el, binding);
     },
     update: function(el, binding, vnode, oldVnode) {
-      let verifyAttr = helper.is('Object', binding.value) ?
-        binding.value :
-        vnode.data.attrs && vnode.data.attrs.hasOwnProperty('data-verify') ?
-          helper.parseJson(attrs['data-verify']) :
-          {};
-      if (verifyAttr.replace) {
-        binding.field = (verifyAttr.field || binding.expression).replace(
-          new RegExp('\'', 'gm'),
-          ''
-        );
-        for (let attr in verifyAttr.replace) {
-          binding.field = binding.field.replace(
-            new RegExp(attr, 'gm'),
-            verifyAttr.replace[attr]
-          );
-        }
-      }
       let errors = vnode.context.$verify.$errors,
         errorText;
       if (errors) {
         errorText = _.get(
           errors,
-          binding.field || verifyAttr.field || binding.expression
+          el.dataset.verify_field || binding.expression
         );
       }
       if (errorText && errorText.length) {
@@ -343,12 +322,12 @@ let Directive = function(Vue, options) {
  */
 Verify.prototype.config = function(options) {
   this.vm.$nextTick(() => {
-    Object.assign(_options, _options, options || {});
-    _options.scrollToEl =
-      _options.scrollToEl !== undefined ? _options.scrollToEl : true;
-    if (_options.field) {
-      helper.fieldOption(_options, _options.field);
-      delete _options.field;
+    Object.assign($options, $options, options || {});
+    $options.scrollToEl =
+      $options.scrollToEl !== undefined ? $options.scrollToEl : true;
+    if ($options.field) {
+      helper.fieldOption($options, $options.field);
+      delete $options.field;
     }
   });
 };
@@ -382,12 +361,12 @@ Verify.prototype.validate = function(field, rule, validOnly) {
  * @param {validOnly} 仅校验，不提示
  */
 Verify.prototype.check = function(group, validOnly) {
-  _options.allCheck = true; //全部校验标识
+  $options.allCheck = true; //全部校验标识
   if (group && helper.is('Object', group)) {
     let _checkOpt = group;
     group = _checkOpt.group;
     validOnly = _checkOpt.validOnly;
-    _options.force = _checkOpt.force;
+    $options.force = _checkOpt.force;
   }
   if (typeof group === 'boolean') {
     validOnly = group;
@@ -397,18 +376,18 @@ Verify.prototype.check = function(group, validOnly) {
   let vm = this.vm; //Vue实例
   let verifyQueue;
   if (group) {
-    if (!vm.$verify.verifyQueue[group]) {
+    if (!vm.$verify.$verifyQueue[group]) {
       console.warn(group + ' not found in the component');
     }
   }
 
   //分组处理
-  if (group && vm.$verify.verifyQueue[group]) {
-    verifyQueue = vm.$verify.verifyQueue[group];
+  if (group && vm.$verify.$verifyQueue[group]) {
+    verifyQueue = vm.$verify.$verifyQueue[group];
   } else {
     verifyQueue = [];
-    for (let k in vm.$verify.verifyQueue) {
-      verifyQueue = verifyQueue.concat(verifyQueue, vm.$verify.verifyQueue[k]);
+    for (let k in vm.$verify.$verifyQueue) {
+      verifyQueue = verifyQueue.concat(verifyQueue, vm.$verify.$verifyQueue[k]);
     }
   }
 
@@ -432,7 +411,7 @@ Verify.prototype.check = function(group, validOnly) {
         );
       })
       .indexOf(false) === -1;
-  helper.batchMsg(vm, _options);
+  helper.batchMsg(vm, $options);
   return _result;
 };
 
@@ -455,12 +434,12 @@ Verify.prototype.errors = function(expression) {
 };
 
 let install = function(Vue, options = {}) {
-  _options = options;
-  _options.multiple = options.hasOwnProperty('multiple') ?
+  $options = options;
+  $options.multiple = options.hasOwnProperty('multiple') ?
     options.multiple :
     false; //是否批量，默认为 false
-  _options.scrollToEl =
-    _options.scrollToEl !== undefined ? _options.scrollToEl : true; //是否滚动到校验的节点
+  $options.scrollToEl =
+    $options.scrollToEl !== undefined ? $options.scrollToEl : true; //是否滚动到校验的节点
   verifyInit(Vue, options);
   Directive(Vue, options);
 };
