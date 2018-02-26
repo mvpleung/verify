@@ -240,10 +240,7 @@ module.exports = (function() {
           vm.$verify.$protoQueue.errors[field] :
           []) || [];
       if (Array.isArray(rule)) {
-        return rule.map((re, i) => {
-          re.message = errors[i || 0] || re.message;
-          return re;
-        });
+        return rule.map((re, i) => (re.message = errors[i || 0] || re.message));
       }
       let _rule = Object.assign({}, rule);
       _rule.message = errors[index || 0] || rule.message;
@@ -330,7 +327,7 @@ module.exports = (function() {
     if (vnodeData.model) {
       field = vnodeData.model.expression;
     } else {
-      helper.forEach(vnodeData.directives, item => {
+      forEach(vnodeData.directives, item => {
         if (item.name === 'model') {
           field = item.expression;
           return false;
