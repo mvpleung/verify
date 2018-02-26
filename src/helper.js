@@ -330,7 +330,7 @@ module.exports = (function() {
     if (vnodeData.model) {
       field = vnodeData.model.expression;
     } else {
-      helper.forEach(vnodeData.directives, item => {
+      forEach(vnodeData.directives, item => {
         if (item.name === 'model') {
           field = item.expression;
           return false;
