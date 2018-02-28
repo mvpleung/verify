@@ -181,6 +181,34 @@ this.$verify.check("student")
 ##### v-remind修饰符说明
 > .join 展示所有错误 用逗号隔开
 
+### 方法说明
+
+#### config
+
+>自定义配置，此配置会覆盖全局配置，仅在当前页面有效
+
+this.$verify.config(options) 
+
+#### validate
+
+>单独校验某个字段field: 字段名，rule：校验规则（可空，默认取配置规则），validOnly：是否仅校验值，不弹窗提示
+
+this.$verify.validate(field, rule, validOnly)   
+
+#### check
+
+>校验配置了 v-verify 指令得所有字段，group：组名（参考指令说明中的分组），validOnly：是否仅校验值，不弹窗提示
+
+this.$verify.check(group, validOnly)    
+
+#### errors
+
+>返回错误列表 field：字段名（为空返回全部错误）
+
+this.$verify.errors(field)  
+
+ 
+
 ### 默认规则
 [默认校验规则](./src/defaultRules.js)
 ```js

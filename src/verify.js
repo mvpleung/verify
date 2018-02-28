@@ -3,7 +3,7 @@
  * @Author: focus 
  * @Date: 2017-04-14
  * @Last Modified by: liangzc
- * @Last Modified time: 2018-02-23 17:33:21
+ * @Last Modified time: 2018-02-28 14:50:05
  */
 let _ = require('lodash/object'),
   domTools = require('./domTools'),
@@ -345,12 +345,11 @@ Verify.prototype.validate = function(field, rule, validOnly) {
   }
   this.vm.$verify.$errorArray = [];
   _.set(this.vm.$verify.$errors, field, []);
+  let expression = helper.getExpression(this.vm, field);
   return validate.call(
     this.vm,
     field,
-    rule ||
-      helper.convertCustomError(this.vm, field, field) ||
-      helper.getExpression(this.vm, field),
+    rule || helper.convertCustomError(this.vm, field, expression) || expression,
     validOnly
   );
 };
