@@ -215,7 +215,7 @@ module.exports = (function() {
       let queue = _verifyQueue[key] || [];
       for (let i = 0; i < queue.length; i++) {
         if (queue[i].field === field) {
-          _expression = item.expression;
+          _expression = queue[i].expression;
           _break = true;
           break;
         }
