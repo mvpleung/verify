@@ -39,14 +39,47 @@ npm install verify-plugin
                 age:"",
                 regInfo: {
                     phone: ""
-                }
+                },
+		verifyCode: '',
+		idNumber: 0
             }
         },
         verify: {
             age:"required",
             regInfo: {
                 phone: ["required","mobile"]
-            }
+            },
+	    verifyCode: [
+	    	{
+		   test: 'required',
+		   message: 'verifyCode不能为空' //自定义提示
+	        },
+	        {
+		  minLength: 4,
+		  message: 'verifyCode 最少四位' //可不定义，使用默认提示
+	        },
+	        {
+		  maxLength: 6,
+		  message: 'verifyCode 最长六位'
+	        }
+	    ],
+	    idNumber: [
+	    	{
+		   test: 'required',
+		   message: 'idNumber不能为空' //自定义提示
+	        },
+	        {
+		  min: 10  //定义数字最小值，默认提示 “请输入一个大于等于10的数字”
+	        },
+	        {
+		  max: 1000,
+		  message: 'idNumber 最大为 1000'
+	        },
+	        {
+		  base: 10,
+		  message: 'idNumber 必须被 10 整除'
+	        }
+	    ]
         },
         methods:{
             submit: function () {
@@ -151,12 +184,39 @@ this.$verify.check("student")
 ### 默认规则
 [默认校验规则](./src/defaultRules.js)
 ```js
-- email 邮箱规则验证
-- mobile 手机号码验证
-- required 必填
-- url 链接规则验证
-- maxLength 最多maxLength个字符串(可自定义message)
-- minLength 最少minLength个字符串(可自定义)
+- email  //邮箱规则验证
+- mobile  //手机号码验证
+- required  //必填
+- url  //链接规则验证
+- tel  //固定电话
+- fax  //传真号码
+- fullname  //不允许含有数字\标点符号(“·”除外），且首位与末位不能为空格，不允许含有汉字又同时含有字母，不小于2个字符
+- number  //数字
+- integer  //非负整数(正整数和零)
+- integerNum  //非负浮点(正浮点数和零)
+- positiveInt  //正整数
+- positiveNum  //正整数或正浮点数
+- address  //地址必须包含汉字，不能连续5个相同字符，最少8个汉字，长度不少于16个字节
+- qq  //QQ号码
+- wechat  //微信号码
+- password  //密码，6-20位英文和数字
+- height  //身高
+- weight  //体重
+- zipNo  //邮编
+- bankNo  //银行卡号，16或19位纯数字
+- idcard  //身份证号码
+- passport  //外国护照，证件号码位数必须为3-20个字符
+- passportCN  //中国护照，证件号码位数必须为7-10个字符
+- birthCertificate  //出生证 - 字母开头且证件号码位数必须为7-11个字符
+- HMMainlandPass  //港澳居民来往内地通行证 - 字母开头且证件号码位数必须为11个字符
+- TWMainlandPass  //台湾居民来往大陆通行证 - 8-10个字符
+- officersCertificate  //军官证，证件号码必须为10-18个字符
+- soldierCard  //士兵证，证件号码必须为10-18个字符
+- minLength  //最少minLength个字符
+- maxLength  //最多maxLength个字符
+- min  //最小 min，结合 number 校验
+- max  //最大 max，结合 number 校验
+- base  //必须被 base 整除（整数倍）
 ```
 
 ### 行内校验规则
