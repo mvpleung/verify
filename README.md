@@ -197,7 +197,7 @@ this.$verify.validate(field, rule, validOnly)
 
 #### check
 
->校验配置了 v-verify 指令得所有字段，group：组名（参考指令说明中的分组），validOnly：是否仅校验值，不弹窗提示
+>校验配置了 v-verify 指令得所有字段，group：组名（参考指令说明中的分组，可空），validOnly：是否仅校验值，不弹窗提示
 
 this.$verify.check(group, validOnly)    
 
