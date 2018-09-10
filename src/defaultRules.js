@@ -3,7 +3,7 @@
  * @Author: liangzc 
  * @Date: 2017-07-20
  * @Last Modified by: liangzc
- * @Last Modified time: 2018-02-13 16:05:36
+ * @Last Modified time: 2018-03-23 10:44:11
  */
 
 /**
@@ -152,7 +152,7 @@ let rules = {
     message: '邮箱格式错误'
   },
   mobile: {
-    test: /^1[34578]\d{9}$/,
+    test: /^1[3456789]\d{9}$/,
     message: '手机号码格式不正确'
   },
   required: {
@@ -270,7 +270,7 @@ let rules = {
   },
   bankNo: {
     //校验银行卡号，16或19位纯数字
-    test: /^[1-9][0-9]{15,18}$/,
+    test: /^[1-9](\d{15}|\d{18})$/,
     message: '请正确输入银行卡号'
   },
   idcard: {
